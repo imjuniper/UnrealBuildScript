@@ -190,7 +190,7 @@ function Build-Project {
 		$ProjectFile
 	)
 
-	if (!$ProjectName && !$TargetName) {
+	if (!$ProjectName -And !$TargetName) {
 		$TargetName = $ProjectFile.BaseName
 	}
 

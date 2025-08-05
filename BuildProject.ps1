@@ -38,7 +38,8 @@ param (
 	[Parameter()]
 	[string]$ArchiveRoot,
 
-	# If set, will output the 
+	# If set, will output the builds to `$ArchiveRoot\$TargetName-$Configuration+yyyymmddThhmm`
+	# instead of just `$ArchiveRoot`.
 	[Parameter()]
 	[switch]$TimestampedArchiveFolder,
 

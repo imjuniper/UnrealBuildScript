@@ -12,7 +12,7 @@ param (
 	
 	# Name of the build target. Defaults to $ProjectName
 	[Parameter()]
-	[string]$TargetName = $ProjectName,
+	[string]$TargetName = $TargetName,
 	
 	# Type of target that will get built. Only used to find the output directory
 	[Parameter()]
@@ -38,7 +38,7 @@ param (
 	[Parameter()]
 	[string]$ArchiveRoot,
 
-	# If set, will archive builds to $ArchiveRoot/$TargetName-$Configuration+YYYYMMDDTHHMM
+	# If set, will output the 
 	[Parameter()]
 	[switch]$TimestampedArchiveFolder,
 
@@ -180,9 +180,13 @@ function Build-Project {
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory)]
-		[string]
+		[System.IO.FileInfo]
 		$ProjectFile
 	)
+
+	if (!$ProjectName && !$TargetName) {
+		$TargetName = $ProjectFile.BaseName
+	}
 
 	$RunUATArgs = ''
 	$RunUATArgs += " -project='${ProjectFile}' -configuration='${Configuration}' -targetplatform='${Platform}'"
@@ -230,7 +234,7 @@ function Publish-To-Itch {
 
 	Write-Host "`n`n----------------------------------------"
 	Write-Host "Uploading to itch.io at ${ItchUsername}/${ItchGame}:${ItchChannel}`n"
-	Invoke-Expression "& butler push ${ButlerArgs} '${OutputDir}' '${ItchUsername}/${ItchGame}:${ItchChannel}'"
+	Invoke-Expression "& butler push --dry-run ${ButlerArgs} '${OutputDir}' '${ItchUsername}/${ItchGame}:${ItchChannel}'"
 }
 
 # Move to the project folder in case some paths are relative to it

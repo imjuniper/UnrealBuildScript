@@ -1,11 +1,12 @@
 # UnrealBuildScript
 Small build script for UE project that can also upload to itch.io
 
-- [Usage](#usage)
-	- [Building](#building)
-		- [Parameters](#parameters)
-	- [Uploading to itch.io](#uploading-to-itchio)
-		- [Parameters](#parameters-1)
+- [UnrealBuildScript](#unrealbuildscript)
+	- [Usage](#usage)
+		- [Building](#building)
+			- [Parameters](#parameters)
+		- [Uploading to itch.io](#uploading-to-itchio)
+			- [Parameters](#parameters-1)
 
 ## Usage
 
@@ -15,9 +16,9 @@ The easiest way to use the script is copying it in your project's directory, ope
 .\BuildProject.ps1
 ```
 
-This will find the `.uproject` file in the script's directory, build the game in the `Development` configuration for the `Win64` platform, and output the build in the `$ProjectRoot/ArchivedBuilds`.
+This will find the `.uproject` file in the script's directory, build the game in the `Development` configuration for the `Win64` platform, and output the build to `$ProjectRoot/ArchivedBuilds`.
 
-You can find all the command's parameters documented in the file, with `Get-Help .\BuildProject.ps1` or lower in this page.
+You can find all the command's parameters documented in the file or lower in this page.
 
 ### Building
 
@@ -75,9 +76,6 @@ Path to Unreal Engine.
 **Default value**: `C:/Program Files/Epic Games/UE_$EngineVersion` (or `$ProjectRoot/..` for native projects)
 
 ### Uploading to itch.io
-
-> [!WARNING]
-> Currently, the tool requires the [`butler`](https://itchio.itch.io/butler) tool to be available in your `$PATH`, but I am planning on adding an auto-download.
 
 To upload a build in the **Shipping** configuration, to the channel `windows`, run the following command:
 

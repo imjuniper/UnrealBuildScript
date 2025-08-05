@@ -139,6 +139,8 @@ elseif ($Platform -eq 'Linux') {
 	$ItchChannel = 'linux'
 }
 
+# Path to auto-downloaded butler
+$ButlerAutoDownloadPath = "${ProjectRoot}/Intermediate/Juniper-BuildScript-Butler"
 
 # Based on https://github.com/XistGG/UnrealXistTools/blob/main/UProjectFile.ps1
 function Find-UProject {
@@ -208,7 +210,7 @@ function Build-Project {
 	$RunUATArgs += " -utf8output -buildmachine -unattended -noP4 -nosplash -stdout"
 
 	# Clear the output directory before building
-	if (Test-Path -Path $OutputDir) {
+	if (Test-Path $OutputDir) {
 		Remove-Item -Recurse $OutputDir
 	}
 
@@ -217,7 +219,51 @@ function Build-Project {
 	Invoke-Expression "& '${EngineRoot}/Engine/Build/BatchFiles/RunUAT.bat' BuildCookRun ${RunUATArgs}"
 }
 
+function Find-Butler {
+	if (Get-Command "butler" -ErrorAction SilentlyContinue) {
+		return "butler"
+	}
+	
+	if (Test-Path -PathType Leaf "${ButlerAutoDownloadPath}/butler.exe") {
+		return "${ButlerAutoDownloadPath}/butler.exe"
+	}
+
+	return $null
+}
+
+function Install-Butler {
+	$ButlerVersion = '15.24.0'
+
+	If (!(Test-Path -PathType Container $ButlerAutoDownloadPath)) {
+		New-Item -ItemType Directory -Path $ButlerAutoDownloadPath | Out-Null
+	}
+
+	Write-Host "The butler tool was not found, downloading butler $ButlerVersion from broth.itch.ovh"
+	Invoke-WebRequest -Uri "https://broth.itch.zone/butler/windows-amd64/15.24.0/archive/default" -OutFile "${ButlerAutoDownloadPath}/butler-${ButlerVersion}.zip"
+
+	Write-Host "Extracting butler-${ButlerVersion}.zip"
+	Expand-Archive -LiteralPath "${ButlerAutoDownloadPath}/butler-${ButlerVersion}.zip" -DestinationPath $ButlerAutoDownloadPath -Force
+
+	# Make sure the user is logged in
+	$ButlerCmd = "${ButlerAutoDownloadPath}/butler.exe"
+	$ButlerArgs = ''
+	if ($ItchCredentialsPath) {
+		$ButlerArgs += " --identity=${ItchCredentialsPath}"
+	}
+	Write-Host "Waiting for butler login..."
+	Invoke-Expression "& ${ButlerCmd} login ${ButlerArgs}" | Out-Null
+
+	return "${ButlerAutoDownloadPath}/butler.exe"
+}
+
 function Publish-To-Itch {
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[string]
+		$ButlerCmd
+	)
+
 	$ButlerArgs = ''
 
 	# Use custom butler credentials if specified
@@ -238,7 +284,7 @@ function Publish-To-Itch {
 
 	Write-Host "`n`n----------------------------------------"
 	Write-Host "Uploading to itch.io at ${ItchUsername}/${ItchGame}:${ItchChannel}`n"
-	Invoke-Expression "& butler push --dry-run ${ButlerArgs} '${OutputDir}' '${ItchUsername}/${ItchGame}:${ItchChannel}'"
+	Invoke-Expression "& ${ButlerCmd} push --dry-run ${ButlerArgs} '${OutputDir}' '${ItchUsername}/${ItchGame}:${ItchChannel}'"
 }
 
 # Move to the project folder in case some paths are relative to it
@@ -247,7 +293,11 @@ Push-Location $ProjectRoot
 Build-Project $(Find-UProject)
 
 if ($PublishToItch) {
-	Publish-To-Itch
+	$ButlerCmd = Find-Butler
+	if (!$ButlerCmd) {
+		$ButlerCmd = Install-Butler
+	}
+	Publish-To-Itch $ButlerCmd
 }
 
 # Return to original location

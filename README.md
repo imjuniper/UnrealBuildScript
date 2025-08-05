@@ -1,12 +1,12 @@
 # UnrealBuildScript
 Small build script for UE project that can also upload to itch.io
 
-- [UnrealBuildScript](#unrealbuildscript)
-	- [Usage](#usage)
-		- [Building](#building)
-			- [Parameters](#parameters)
-		- [Uploading to itch.io](#uploading-to-itchio)
-			- [Parameters](#parameters-1)
+<!-- no toc -->
+- [Usage](#usage)
+	- [Building](#building)
+		- [Parameters](#parameters)
+	- [Uploading to itch.io](#uploading-to-itchio)
+		- [Parameters](#parameters-1)
 
 ## Usage
 

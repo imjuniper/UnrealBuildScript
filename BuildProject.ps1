@@ -165,8 +165,7 @@ function Find-UProject {
 				Write-Warning "Ambiguous .uproject: $ProjectFile"
 			}
 
-			Write-Error "Cannot auto-select a .uproject file in a directory with multiple .uproject; You must specify the -ProjectName parameter"
-			Exit 1
+			throw "Cannot auto-select a .uproject file in a directory with multiple .uproject; You must specify the -ProjectName parameter"
 		}
 
 		foreach ($ProjectFile in $FoundProjects) {
@@ -176,13 +175,11 @@ function Find-UProject {
 		}
 
 		if (!$Result) {
-			Write-Error "Could not find $ProjectName.uproject file in $ProjectRoot; Please check your -ProjectName parameter"
-			Exit 1
+			throw "Could not find $ProjectName.uproject file in $ProjectRoot; Please check your -ProjectName parameter"
 		}
 	}
 	else {
-		Write-Error "Not an Unreal Engine project directory; no .uproject files in: $ProjectRoot"
-		Exit 1
+		throw "Not an Unreal Engine project directory; no .uproject files in: $ProjectRoot"
 	}
 
 	return $Result
@@ -300,15 +297,18 @@ function Publish-To-Itch {
 # Move to the project folder in case some paths are relative to it
 Push-Location $ProjectRoot
 
-Build-Project $(Find-UProject)
-
-if ($PublishToItch) {
-	$ButlerCmd = Find-Butler
-	if (!$ButlerCmd) {
-		$ButlerCmd = Install-Butler
+try {
+	Build-Project $(Find-UProject)
+	
+	if ($PublishToItch) {
+		$ButlerCmd = Find-Butler
+		if (!$ButlerCmd) {
+			$ButlerCmd = Install-Butler
+		}
+		Publish-To-Itch $ButlerCmd
 	}
-	Publish-To-Itch $ButlerCmd
 }
-
-# Return to original location
-Pop-Location
+finally {
+	# Return to original location
+	Pop-Location
+}

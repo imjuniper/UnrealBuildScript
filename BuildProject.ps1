@@ -83,6 +83,12 @@ param (
 	[string]$ItchCredentialsPath
 )
 
+# Prevent uploads of non-shipping builds by default
+if ($PublishToItch -And !$AllowPublishNonShipping -And $Configuration -ne 'Shipping') {
+	Write-Error 'Cannot publish non-Shipping builds to itch.' -Category InvalidArgument
+	Exit 1
+}
+
 # Set default engine root to default launcher install location using the version
 if (!$EngineRoot) {
 	if ($NativeProject) {
@@ -125,11 +131,14 @@ if ($TargetType -eq 'Server') {
 	$OutputDir += 'Server'
 }
 
-# Prevent uploads of non-shipping builds by default
-if ($PublishToItch -And !$AllowPublishNonShipping -And $Configuration -ne 'Shipping') {
-	Write-Error 'Cannot publish non-Shipping builds to itch.' -Category InvalidArgument
-	Exit 1
+# Set the correct itch channel
+if ($Platform -eq 'Win64') {
+	$ItchChannel = 'windows'
 }
+elseif ($Platform -eq 'Linux') {
+	$ItchChannel = 'linux'
+}
+
 
 # Based on https://github.com/XistGG/UnrealXistTools/blob/main/UProjectFile.ps1
 function Find-UProject {

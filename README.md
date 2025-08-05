@@ -51,9 +51,14 @@ Platform to build and cook
 **Accepted values**: `Win64`, `Linux`  
 **Default value**: `Win64`
 
-**`-Prereqs:<string>`**  
+**`-Prerequisites:<string>`**  
 If set, will bundle Unreal Engine prerequisites either as an installer or local DLLs.  
+**Aliases**: `-Prereqs`  
 **Accepted values**: `Installer`, `Local`
+
+**`-IncludeCrashReporter`**  
+If set, will include the crash reporter in the build.  
+**Aliases**: `-CrashReporter`  
 
 **`-ArchiveRoot:<string>`**  
 Where to output the build.  
@@ -82,8 +87,9 @@ To upload a build in the **Shipping** configuration, to the channel `windows`, r
 ```pwsh
 .\BuildProject.ps1 -Configuration:Shipping -PublishToItch -ItchUsername:ITCH_USERNAME -ItchGame:ITCH_GAME
 ```
+
 > [!TIP]
-> For game jams, you will probably want to add `-Prereqs:Local` so that the Visual C++ and other dependencies' DLLs are copied alongside the game's exe. You can also use `-Prereqs:Installer` to bundle the installer instead.
+> For game jams, you will probably want to add `-Prerequisites:Local` so that the Visual C++ and other dependencies' DLLs are copied alongside the game's exe. You can also use `-Prerequisites:Installer` to bundle the installer instead.
 
 > [!IMPORTANT]
 > By default, the script will block you from uploading non-Shipping builds to itch.io, to prevent mistakes. You can add the `-AllowPublishNonShipping` parameter to override that behaviour.

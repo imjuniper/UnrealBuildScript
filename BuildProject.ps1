@@ -31,8 +31,14 @@ param (
 
 	# If set, will bundle UE prereqs either as an installer or local DLLs
 	[Parameter()]
+	[Alias("Prereqs")]
 	[ValidateSet('Installer', 'Local')]
-	[string]$Prereqs,
+	[string]$Prerequisites,
+
+	# If set, will include the crash reporter in the build
+	[Parameter()]
+	[Alias("CrashReporter")]
+	[switch]$IncludeCrashReporter,
 
 	# Where to output the build. Defaults to $ProjectRoot/ArchivedBuilds.
 	[Parameter()]
@@ -199,11 +205,15 @@ function Build-Project {
 	$RunUATArgs += " -build -target='${TargetName}'"
 	$RunUATArgs += " -cook -unversionedcookedcontent -pak -compressed -package -iostore"
 
-	if ($Prereqs -eq 'Installer') {
+	if ($Prerequisites -eq 'Installer') {
 		$RunUATArgs += " -prereqs"	
 	}
-	elseif ($Prereqs -eq 'Local') {
+	elseif ($Prerequisites -eq 'Local') {
 		$RunUATArgs += " -applocaldirectory='${EngineRoot}/Engine/Binaries/ThirdParty/AppLocalDependencies'"	
+	}
+
+	if ($IncludeCrashReporter) {
+		$RunUATArgs += " -CrashReporter"
 	}
 
 	$RunUATArgs += " -stage -archive -archivedirectory='${ArchiveRoot}'"

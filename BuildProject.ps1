@@ -124,7 +124,7 @@ if ($Platform -eq 'Win64') {
 	$OutputDir += '/Windows'
 }
 elseif ($Platform -eq 'Linux') {
-	$OutputDir = '/Linux'
+	$OutputDir += '/Linux'
 }
 
 if ($TargetType -eq 'Server') {

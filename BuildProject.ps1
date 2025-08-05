@@ -59,32 +59,26 @@ param (
 	[string]$EngineRoot,
 
 	# Whether to upload the game to itch using butler. See https://itch.io/docs/butler/
-	[Parameter(ParameterSetName = 'NativeProject')]
 	[Parameter(ParameterSetName = 'Itch', Mandatory = $true)]
 	[switch]$PublishToItch,
 
 	# Enables uploading of non-shipping games
-	[Parameter(ParameterSetName = 'NativeProject')]
 	[Parameter(ParameterSetName = 'Itch')]
 	[switch]$AllowPublishNonShipping,
 
 	# Username under which the game is hosted. See https://itch.io/docs/butler/pushing.html
-	[Parameter(ParameterSetName = 'NativeProject')]
 	[Parameter(ParameterSetName = 'Itch', Mandatory = $true)]
 	[string]$ItchUsername,
 
 	# Name of the game being uploaded. See https://itch.io/docs/butler/pushing.html
-	[Parameter(ParameterSetName = 'NativeProject')]
 	[Parameter(ParameterSetName = 'Itch', Mandatory = $true)]
 	[string]$ItchGame,
 
 	# Name of the channel where it should upload. See https://itch.io/docs/butler/pushing.html
-	[Parameter(ParameterSetName = 'NativeProject')]
 	[Parameter(ParameterSetName = 'Itch')]
 	[string]$ItchChannel,
 
 	# If set, will use a custom credentials file. Useful if you need multiple users. See https://itch.io/docs/butler/login.html
-	[Parameter(ParameterSetName = 'NativeProject')]
 	[Parameter(ParameterSetName = 'Itch')]
 	[string]$ItchCredentialsPath
 )

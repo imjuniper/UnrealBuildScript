@@ -284,7 +284,7 @@ function Publish-To-Itch {
 
 	Write-Host "`n`n----------------------------------------"
 	Write-Host "Uploading to itch.io at ${ItchUsername}/${ItchGame}:${ItchChannel}`n"
-	Invoke-Expression "& ${ButlerCmd} push --dry-run ${ButlerArgs} '${OutputDir}' '${ItchUsername}/${ItchGame}:${ItchChannel}'"
+	Invoke-Expression "& ${ButlerCmd} push ${ButlerArgs} '${OutputDir}' '${ItchUsername}/${ItchGame}:${ItchChannel}'"
 }
 
 # Move to the project folder in case some paths are relative to it

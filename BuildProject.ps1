@@ -197,24 +197,25 @@ function Build-Project {
 		$TargetName = $ProjectFile.BaseName
 	}
 
-	$RunUATArgs = ''
-	$RunUATArgs += " -project='${ProjectFile}' -configuration='${Configuration}' -targetplatform='${Platform}'"
-	$RunUATArgs += " -build -target='${TargetName}'"
-	$RunUATArgs += " -cook -unversionedcookedcontent -pak -compressed -package -iostore"
+	
+	$RunUATArgs = New-Object System.Collections.Generic.List[System.String]
+	$RunUATArgs.AddRange([System.String[]]("-project=${ProjectFile}", "-configuration=${Configuration}", "-targetplatform=${Platform}"))
+	$RunUATArgs.AddRange([System.String[]]("-build", "-target=${TargetName}"))
+	$RunUATArgs.AddRange([System.String[]]("-cook", "-unversionedcookedcontent", "-pak", "-compressed", "-package", "-iostore"))
 
 	if ($Prerequisites -eq 'Installer') {
-		$RunUATArgs += " -prereqs"	
+		$RunUATArgs.Add("-prereqs")
 	}
 	elseif ($Prerequisites -eq 'Local') {
-		$RunUATArgs += " -applocaldirectory='${EngineRoot}/Engine/Binaries/ThirdParty/AppLocalDependencies'"	
+		$RunUATArgs.Add("-applocaldirectory=${EngineRoot}/Engine/Binaries/ThirdParty/AppLocalDependencies")
 	}
 
 	if ($IncludeCrashReporter) {
-		$RunUATArgs += " -CrashReporter"
+		$RunUATArgs.Add("-CrashReporter")
 	}
 
-	$RunUATArgs += " -stage -archive -archivedirectory='${ArchiveRoot}'"
-	$RunUATArgs += " -utf8output -buildmachine -unattended -noP4 -nosplash -stdout"
+	$RunUATArgs.AddRange([System.String[]]("-stage", "-archive", "-archivedirectory=${ArchiveRoot}"))
+	$RunUATArgs.AddRange([System.String[]]("-utf8output", "-buildmachine", "-unattended", "-noP4", "-nosplash", "-stdout"))
 
 	# Clear the output directory before building
 	if (Test-Path $OutputDir) {
@@ -223,7 +224,7 @@ function Build-Project {
 
 	Write-Host "----------------------------------------"
 	Write-Host "Building target ${TargetName} in ${Configuration} configuration`n"
-	Invoke-Expression "& '${EngineRoot}/Engine/Build/BatchFiles/RunUAT.bat' BuildCookRun ${RunUATArgs}"
+	& $EngineRoot/Engine/Build/BatchFiles/RunUAT.bat BuildCookRun $RunUATArgs
 }
 
 function Find-Butler {
@@ -253,12 +254,12 @@ function Install-Butler {
 
 	# Make sure the user is logged in
 	$ButlerCmd = "${ButlerAutoDownloadPath}/butler.exe"
-	$ButlerArgs = ''
+	$ButlerArgs = New-Object System.Collections.Generic.List[System.String]
 	if ($ItchCredentialsPath) {
-		$ButlerArgs += " --identity=${ItchCredentialsPath}"
+		$ButlerArgs.Add("--identity=${ItchCredentialsPath}")
 	}
 	Write-Host "Waiting for butler login..."
-	Invoke-Expression "& ${ButlerCmd} login ${ButlerArgs}" | Out-Null
+	$(& $ButlerCmd login $ButlerArgs) | Out-Null # powershell adds this to the function's return vars if not Out-Null
 
 	return "${ButlerAutoDownloadPath}/butler.exe"
 }
@@ -271,27 +272,27 @@ function Publish-To-Itch {
 		$ButlerCmd
 	)
 
-	$ButlerArgs = ''
+	$ButlerArgs = New-Object System.Collections.Generic.List[System.String]
 
 	# Use custom butler credentials if specified
 	if ($ItchCredentialsPath) {
-		$ButlerArgs += " --identity=${ItchCredentialsPath}"
+		$ButlerArgs.Add("--identity=${ItchCredentialsPath}")
 	}
 	
 	# Ignore debugging symbols to reduce build size
 	if ($Platform -eq 'Win64') {
-		$ButlerArgs += " --ignore '*.pdb'"
+		$ButlerArgs.Add("--ignore=*.pdb")
 	}
 	elseif ($Platform -eq 'Linux') {
-		$ButlerArgs += " --ignore '*.sym' --ignore '*.debug'"
+		$ButlerArgs.AddRange([System.String[]]("--ignore=*.sym", "--ignore=*.debug"))
 	}
 
 	# Default ignores
-	$ButlerArgs += " --ignore 'StagedBuild_*.ini' --ignore 'Manifest_*.txt'"
+	$ButlerArgs.AddRange([System.String[]]("--ignore=StagedBuild_*.ini", "--ignore=Manifest_*.txt"))
 
 	Write-Host "`n`n----------------------------------------"
 	Write-Host "Uploading to itch.io at ${ItchUsername}/${ItchGame}:${ItchChannel}`n"
-	Invoke-Expression "& ${ButlerCmd} push ${ButlerArgs} '${OutputDir}' '${ItchUsername}/${ItchGame}:${ItchChannel}'"
+	& $ButlerCmd push $ButlerArgs $OutputDir "${ItchUsername}/${ItchGame}:${ItchChannel}"
 }
 
 # Move to the project folder in case some paths are relative to it

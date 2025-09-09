@@ -50,9 +50,9 @@ param (
 	[switch]$TimestampedArchiveFolder,
 
 	# Unreal version that is used. Only used for launcher installs auto-root
-	# folder "detection". Defaults to 5.6
+	# folder "detection". Defaults to finding the one in the .uproject file
 	[Parameter(ParameterSetName = 'LauncherInstall')]
-	[string]$EngineVersion = '5.6',
+	[string]$EngineVersion,
 
 	# Whether this is a native project
 	[Parameter(ParameterSetName = 'NativeProject', Mandatory = $true)]
@@ -95,59 +95,6 @@ if ($PublishToItch -And !$AllowPublishNonShipping -And $Configuration -ne 'Shipp
 	Exit 1
 }
 
-# Set default engine root to default launcher install location using the version
-if (!$EngineRoot) {
-	if ($NativeProject) {
-		$EngineRoot = "${PSScriptRoot}/.."
-	}
-	else {
-		$EngineRoot = "C:/Program Files/Epic Games/UE_${EngineVersion}"
-	}
-}
-
-# Set default project root
-if (!$ProjectRoot) {
-	if ($NativeProject -And $ProjectName) {
-		$ProjectRoot = "${EngineRoot}/${ProjectName}"
-	}
-	else {
-		$ProjectRoot = $PSScriptRoot
-	}
-}
-
-# Set default archive root and clear it
-if (!$ArchiveRoot) {
-	$ArchiveRoot = "${ProjectRoot}/ArchivedBuilds"
-}
-
-if ($TimestampedArchiveFolder) {
-	$ArchiveRoot += "/${TargetName}-${Configuration}+$(Get-Date -Format "yyyyMMddTHHmm")"
-}
-
-# Set the correct platform output directory, for itch.
-$OutputDir = $ArchiveRoot
-if ($Platform -eq 'Win64') {
-	$OutputDir += '/Windows'
-}
-elseif ($Platform -eq 'Linux') {
-	$OutputDir += '/Linux'
-}
-
-if ($TargetType -eq 'Server') {
-	$OutputDir += 'Server'
-}
-
-# Set the correct itch channel
-if ($Platform -eq 'Win64') {
-	$ItchChannel = 'windows'
-}
-elseif ($Platform -eq 'Linux') {
-	$ItchChannel = 'linux'
-}
-
-# Path to auto-downloaded butler
-$ButlerAutoDownloadPath = "${ProjectRoot}/Intermediate/Juniper-BuildScript-Butler"
-
 # Based on https://github.com/XistGG/UnrealXistTools/blob/main/UProjectFile.ps1
 function Find-UProject {
 	$Result = $null
@@ -185,6 +132,121 @@ function Find-UProject {
 	return $Result
 }
 
+### Mostly imported from https://github.com/XistGG/UnrealXistTools/blob/main/Modules/UE.psm1 ###
+function UE_ListCustomEngines_LinuxMac {
+	[CmdletBinding()]
+	param()
+
+	$result = [System.Collections.ArrayList]@()
+
+	$iniFile = $IsLinux ? $LinuxInstallIni : $MacInstallIni
+
+	$installationPairs = & INI_ReadSection -Filename $iniFile -Section "Installations" -MayNotExist
+
+	if ($installationPairs -and $installationPairs.Count -gt 0) {
+		for ($i = 0; $i -lt $installationPairs.Count; $i++) {
+			$iniPair = $installationPairs[$i]
+			$result += [PSCustomObject]@{
+				Name = $iniPair.Name
+				Root = $iniPair.Value
+			}
+		}
+	}
+
+	return $result
+}
+
+function UE_ListCustomEngines_Windows {
+	[CmdletBinding()]
+	param()
+
+	Write-Debug "Reading custom engines from Registry::$WindowsBuildsRegistryKey"
+
+	$registryBuilds = Get-Item -Path "Registry::$WindowsBuildsRegistryKey" 2> $null
+	$result = [System.Collections.ArrayList]@()
+
+	if (!$registryBuilds) {
+		Write-Warning "Build Registry Not Found: $WindowsBuildsRegistryKey"
+		return $result
+	}
+
+	# Must iterate to Length; registry key does not have a Count
+	for ($i = 0; $i -lt $registryBuilds.Length; $i++) {
+		$propertyList = $registryBuilds[$i].Property
+
+		# propertyList is an actual array, it has a Count
+		if ($propertyList -and $propertyList.Count -gt 0) {
+			for ($p = 0; $p -lt $propertyList.Count; $p++) {
+				$buildName = $propertyList[$p]
+				if ($buildName) {
+					# Get the ItemPropertyValue for this $buildName
+					$value = Get-ItemPropertyValue -Path "Registry::$WindowsBuildsRegistryKey" -Name $buildName
+
+					# Append the build to the $result array
+					$result += [PSCustomObject]@{
+						Name = $buildName
+						Root = $value
+					}
+				}
+			}
+		}
+	}
+
+	return $result
+}
+
+function UE_ListCustomEngines {
+	[CmdletBinding()]
+	param()
+
+	if ($IsLinux -or $IsMacOS) {
+		return & UE_ListCustomEngines_LinuxMac
+	}
+
+	return & UE_ListCustomEngines_Windows
+}
+
+function UE_SelectCustomEngine {
+	[CmdletBinding()]
+	param(
+		[string]$Name,
+		[string]$Root
+	)
+
+	# List all available custom engines
+	$customEngines = & UE_ListCustomEngines
+
+	foreach ($engine in $customEngines) {
+		if ($Name) {
+			Write-Debug "Compare desired -Name `"$Name`" with `"$($engine.Name)`""
+			if ($engine.Name -eq $Name) {
+				Write-Debug "Found custom engine match on -Name `"$Name`""
+				return $engine
+			}
+		}
+	}
+
+	# This happens on build servers with unregistered engines in random locations.
+	Write-Debug "Query for Custom Engine (`"$Name`") failed to find a match"
+	return $null
+}
+
+function UE_GetEngineByAssociation {
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory)]
+		[string]$EngineAssociation
+	)
+
+	$result = & UE_SelectCustomEngine -Name $EngineAssociation
+	if ($result) {
+		return $result.Root
+	}
+
+	return "C:\Program Files\Epic Games\UE_$EngineAssociation"
+}
+### End import(ish) from https://github.com/XistGG/UnrealXistTools/blob/main/Modules/UE.psm1 ###
+
 function Build-Project {
 	[CmdletBinding()]
 	param (
@@ -196,7 +258,6 @@ function Build-Project {
 	if (!$ProjectName -And !$TargetName) {
 		$TargetName = $ProjectFile.BaseName
 	}
-
 	
 	$RunUATArgs = New-Object System.Collections.Generic.List[System.String]
 	$RunUATArgs.AddRange([System.String[]]("-project=${ProjectFile}", "-configuration=${Configuration}", "-targetplatform=${Platform}"))
@@ -298,8 +359,77 @@ function Publish-To-Itch {
 # Move to the project folder in case some paths are relative to it
 Push-Location $ProjectRoot
 
+$UProjectFile = $null
+
 try {
-	Build-Project $(Find-UProject)
+	$UProjectFile = Find-UProject
+}
+catch {
+	Pop-Location
+}
+
+# Set default engine root to default launcher install location using the version
+if (!$EngineRoot) {
+	if ($NativeProject) {
+		$EngineRoot = "${PSScriptRoot}/.."
+	}
+	elseif (!$EngineVersion) {
+		$UProject = Get-Content -Raw $UProjectFile | ConvertFrom-Json
+
+		if (Get-Member -InputObject $UProject -Name "EngineAssociation" -MemberType Properties) {
+			$EngineRoot = UE_GetEngineByAssociation $UProject.EngineAssociation
+		}
+	}
+	else {
+		$EngineRoot = "C:/Program Files/Epic Games/UE_${EngineVersion}"
+	}
+}
+
+# Set default project root
+if (!$ProjectRoot) {
+	if ($NativeProject -And $ProjectName) {
+		$ProjectRoot = "${EngineRoot}/${ProjectName}"
+	}
+	else {
+		$ProjectRoot = $PSScriptRoot
+	}
+}
+
+# Set default archive root and clear it
+if (!$ArchiveRoot) {
+	$ArchiveRoot = "${ProjectRoot}/ArchivedBuilds"
+}
+
+if ($TimestampedArchiveFolder) {
+	$ArchiveRoot += "/${TargetName}-${Configuration}+$(Get-Date -Format "yyyyMMddTHHmm")"
+}
+
+# Set the correct platform output directory, for itch.
+$OutputDir = $ArchiveRoot
+if ($Platform -eq 'Win64') {
+	$OutputDir += '/Windows'
+}
+elseif ($Platform -eq 'Linux') {
+	$OutputDir += '/Linux'
+}
+
+if ($TargetType -eq 'Server') {
+	$OutputDir += 'Server'
+}
+
+# Set the correct itch channel
+if ($Platform -eq 'Win64') {
+	$ItchChannel = 'windows'
+}
+elseif ($Platform -eq 'Linux') {
+	$ItchChannel = 'linux'
+}
+
+# Path to auto-downloaded butler
+$ButlerAutoDownloadPath = "${ProjectRoot}/Intermediate/Juniper-BuildScript-Butler"
+
+try {
+	Build-Project $UProjectFile
 	
 	if ($PublishToItch) {
 		$ButlerCmd = Find-Butler

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param (
-	# Where to find the .uplugin file. Defaults to the script's directory
+	# Where to find the .uplugin file. Defaults to the current working directory
 	[Parameter()]
 	[System.IO.FileInfo]
 	$PluginRoot,
@@ -47,7 +47,7 @@ if (-not $EngineRoot) {
 
 # Set default plugin root to current directory
 if (-not $PluginRoot) {
-	$PluginRoot = $PWD
+	$PluginRoot = [System.IO.Path]::GetFullPath($PWD)
 }
 else {
 	$PluginRoot = [System.IO.Path]::GetFullPath($PluginRoot, $PWD)

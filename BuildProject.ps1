@@ -1,9 +1,9 @@
 [CmdletBinding()]
 param (
-	# Where to find the uproject file. Defaults to the script's directory or
+	# Where to find the uproject file. Defaults to the current working directory or
 	# $EngineRoot/$ProjectName for native projects with -ProjectName
 	[Parameter()]
-	[string]$ProjectRoot,
+	[System.IO.FileInfo]$ProjectRoot,
 
 	# Name of the uproject file to build. Tries to find one in the $ProjectRoot
 	# by default
@@ -42,7 +42,7 @@ param (
 
 	# Where to output the build. Defaults to $ProjectRoot/ArchivedBuilds.
 	[Parameter()]
-	[string]$ArchiveRoot,
+	[System.IO.FileInfo]$ArchiveRoot,
 
 	# If set, will output the builds to `$ArchiveRoot\$TargetName-$Configuration+yyyymmddThhmm`
 	# instead of just `$ArchiveRoot`.
@@ -59,10 +59,10 @@ param (
 	[switch]$NativeProject,
 
 	# Path to Unreal Engine. Defaults to C:/Program Files/Epic Games/UE_$EngineVersion
-	# for launcher installs and $ProjectRoot/.. for native installs
+	# for launcher installs, or tries to find one in the folder path for native installs
 	[Parameter(ParameterSetName = 'LauncherInstall')]
 	[Parameter(ParameterSetName = 'NativeProject')]
-	[string]$EngineRoot,
+	[System.IO.FileInfo]$EngineRoot,
 
 	# Whether to upload the game to itch using butler. See https://itch.io/docs/butler/
 	[Parameter(ParameterSetName = 'Itch', Mandatory = $true)]
@@ -86,7 +86,7 @@ param (
 
 	# If set, will use a custom credentials file. Useful if you need multiple users. See https://itch.io/docs/butler/login.html
 	[Parameter(ParameterSetName = 'Itch')]
-	[string]$ItchCredentialsPath
+	[System.IO.FileInfo]$ItchCredentialsPath
 )
 
 # Prevent uploads of non-shipping builds by default
@@ -356,6 +356,33 @@ function Publish-To-Itch {
 	& $ButlerCmd push $ButlerArgs $OutputDir "${ItchUsername}/${ItchGame}:${ItchChannel}"
 }
 
+if (-not $EngineRoot -and $NativeProject) {
+	$EngineRoot = [System.IO.Path]::GetFullPath($PWD)
+
+	while ($true) {
+		if (Test-Path "${EngineRoot}/Engine") {
+			break
+		}
+		if (-not (Get-Item $EngineRoot).Parent) {
+			throw "Could not find an Engine folder in any parent folder."
+		}
+		$EngineRoot = [System.IO.Path]::GetFullPath((Get-Item $EngineRoot).Parent)
+	}
+}
+
+# Set default project root
+if (-not $ProjectRoot) {
+	if ($NativeProject -And $ProjectName) {
+		$ProjectRoot = "${EngineRoot}/${ProjectName}"
+	}
+	else {
+		$ProjectRoot = [System.IO.Path]::GetFullPath($PWD)
+	}
+}
+else {
+	$ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot, $PWD)
+}
+
 # Move to the project folder in case some paths are relative to it
 Push-Location $ProjectRoot
 
@@ -366,14 +393,12 @@ try {
 }
 catch {
 	Pop-Location
+	exit
 }
 
 # Set default engine root to default launcher install location using the version
-if (!$EngineRoot) {
-	if ($NativeProject) {
-		$EngineRoot = "${PSScriptRoot}/.."
-	}
-	elseif (!$EngineVersion) {
+if (-not $EngineRoot) {
+	if (-not $EngineVersion) {
 		$UProject = Get-Content -Raw $UProjectFile | ConvertFrom-Json
 
 		if (Get-Member -InputObject $UProject -Name "EngineAssociation" -MemberType Properties) {
@@ -385,19 +410,12 @@ if (!$EngineRoot) {
 	}
 }
 
-# Set default project root
-if (!$ProjectRoot) {
-	if ($NativeProject -And $ProjectName) {
-		$ProjectRoot = "${EngineRoot}/${ProjectName}"
-	}
-	else {
-		$ProjectRoot = $PSScriptRoot
-	}
-}
-
 # Set default archive root and clear it
-if (!$ArchiveRoot) {
+if (-not $ArchiveRoot) {
 	$ArchiveRoot = "${ProjectRoot}/ArchivedBuilds"
+}
+else {
+	$ArchiveRoot = [System.IO.Path]::GetFullPath($ArchiveRoot, $PWD)
 }
 
 if ($TimestampedArchiveFolder) {

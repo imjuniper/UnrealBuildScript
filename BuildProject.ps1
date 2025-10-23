@@ -26,7 +26,7 @@ param (
 
 	# Platform to build and cook
 	[Parameter()]
-	[ValidateSet('Win64', 'Linux')]
+	[ValidateSet('Win64', 'Linux', 'LinuxArm64')]
 	[string]$Platform = 'Win64',
 
 	# If set, will bundle UE prereqs either as an installer or local DLLs
@@ -423,13 +423,8 @@ if ($TimestampedArchiveFolder) {
 }
 
 # Set the correct platform output directory, for itch.
-$OutputDir = $ArchiveRoot
-if ($Platform -eq 'Win64') {
-	$OutputDir += '/Windows'
-}
-elseif ($Platform -eq 'Linux') {
-	$OutputDir += '/Linux'
-}
+$OutputDir = $ArchiveRoot.FullName
+$OutputDir += "/${Platform}"
 
 if ($TargetType -eq 'Server') {
 	$OutputDir += 'Server'

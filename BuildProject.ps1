@@ -9,11 +9,11 @@ param (
 	# by default
 	[Parameter()]
 	[string]$ProjectName,
-	
+
 	# Name of the build target. Defaults to $ProjectName
 	[Parameter()]
-	[string]$TargetName = $TargetName,
-	
+	[string]$TargetName = $ProjectName,
+
 	# Type of target that will get built. Only used to find the output directory
 	[Parameter()]
 	[ValidateSet('Game', 'Client', 'Server')]
@@ -258,7 +258,7 @@ function Build-Project {
 	if (!$ProjectName -And !$TargetName) {
 		$TargetName = $ProjectFile.BaseName
 	}
-	
+
 	$RunUATArgs = New-Object System.Collections.Generic.List[System.String]
 	$RunUATArgs.AddRange([System.String[]]("-project=${ProjectFile}", "-configuration=${Configuration}", "-targetplatform=${Platform}"))
 	$RunUATArgs.AddRange([System.String[]]("-build", "-target=${TargetName}"))
@@ -292,7 +292,7 @@ function Find-Butler {
 	if (Get-Command "butler" -ErrorAction SilentlyContinue) {
 		return "butler"
 	}
-	
+
 	if (Test-Path -PathType Leaf "${ButlerAutoDownloadPath}/butler.exe") {
 		return "${ButlerAutoDownloadPath}/butler.exe"
 	}
@@ -339,7 +339,7 @@ function Publish-To-Itch {
 	if ($ItchCredentialsPath) {
 		$ButlerArgs.Add("--identity=${ItchCredentialsPath}")
 	}
-	
+
 	# Ignore debugging symbols to reduce build size
 	if ($Platform -eq 'Win64') {
 		$ButlerArgs.Add("--ignore=*.pdb")
@@ -443,7 +443,7 @@ $ButlerAutoDownloadPath = "${ProjectRoot}/Intermediate/Juniper-BuildScript-Butle
 
 try {
 	Build-Project $UProjectFile
-	
+
 	if ($PublishToItch) {
 		$ButlerCmd = Find-Butler
 		if (!$ButlerCmd) {
